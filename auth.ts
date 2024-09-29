@@ -23,13 +23,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: credentials.email as string },
         });
         if (!user || !user.password) {
           return null;
         }
         const isPasswordValid = await bcrypt.compare(
-          credentials.password,
+          credentials.password as string,
           user.password
         );
         if (!isPasswordValid) {
