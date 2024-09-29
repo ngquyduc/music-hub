@@ -1,20 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, LogOut } from "lucide-react";
 import { SpotifyConnectButton } from "./components/SpotifyConnectButton";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [isSpotifyConnected, setIsSpotifyConnected] = useState(false);
+  const [isYouTubeAvailable, setIsYouTubeAvailable] = useState(false);
+  const [isDeezerAvailable, setIsDeezerAvailable] = useState(false);
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -31,24 +33,31 @@ export default function Dashboard() {
 
     if (success === "spotify_connected") {
       setIsSpotifyConnected(true);
-      toast({
-        title: "Success",
-        description: "Your Spotify account has been successfully connected!",
-        duration: 5000,
-      });
-      // Remove the query parameters from the URL
-      router.replace("/dashboard", undefined, { shallow: true });
+      showSuccessToast("Spotify");
     } else if (error) {
-      toast({
-        title: "Error",
-        description: `There was an error connecting your Spotify account: ${error}`,
-        variant: "destructive",
-        duration: 5000,
-      });
-      // Remove the query parameters from the URL
-      router.replace("/dashboard", undefined, { shallow: true });
+      showErrorToast(error);
     }
+
+    // Remove the query parameters from the URL
+    router.replace("/dashboard", undefined);
   }, [searchParams, toast, router]);
+
+  const showSuccessToast = (service: string) => {
+    toast({
+      title: "Success",
+      description: `Your ${service} account has been successfully connected!`,
+      duration: 5000,
+    });
+  };
+
+  const showErrorToast = (error: string) => {
+    toast({
+      title: "Error",
+      description: `There was an error connecting your account: ${error}`,
+      variant: "destructive",
+      duration: 5000,
+    });
+  };
 
   const fetchOnboardingStatus = async () => {
     try {
@@ -58,6 +67,7 @@ export default function Dashboard() {
       const data = await response.json();
       setIsOnboarded(data.isOnboarded);
       setIsSpotifyConnected(data.isSpotifyConnected);
+      setIsYouTubeAvailable(data.isYouTubeAvailable);
     } catch (error) {
       console.error("Error fetching onboarding status:", error);
     }
@@ -88,6 +98,16 @@ export default function Dashboard() {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut({ redirect: false });
+    router.push("/"); // Redirect to home page after signing out
+    toast({
+      title: "Signed Out",
+      description: "You have been successfully signed out.",
+      duration: 3000,
+    });
+  };
+
   if (status === "loading") {
     return <div>Loading...</div>;
   }
@@ -99,8 +119,12 @@ export default function Dashboard() {
   return (
     <div className="container mx-auto px-4 py-8">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Welcome to Your Dashboard, {session.user?.name}</CardTitle>
+          <Button variant="outline" size="sm" onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
         </CardHeader>
         <CardContent>
           {!isOnboarded ? (
@@ -111,37 +135,51 @@ export default function Dashboard() {
               <p className="mb-4">
                 Connect your music accounts to get the most out of Music Hub.
               </p>
-              {isSpotifyConnected ? (
-                <Alert className="mb-4">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <AlertTitle>Spotify Connected</AlertTitle>
-                  <AlertDescription>
-                    Your Spotify account is successfully connected.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <SpotifyConnectButton />
-              )}
-              {/* Add other music service connect buttons here */}
-              <Button onClick={handleContinue} className="mt-4">
-                Continue to Dashboard
-              </Button>
+              <div className="flex flex-col">
+                {isSpotifyConnected ? (
+                  <Alert className="mb-4">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertTitle>Spotify Connected</AlertTitle>
+                    <AlertDescription>
+                      Your Spotify account is successfully connected.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <SpotifyConnectButton />
+                )}
+                {isYouTubeAvailable ? (
+                  <Alert className="mb-4">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertTitle>YouTube Music Available</AlertTitle>
+                    <AlertDescription>
+                      YouTube Music functionality is available.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Button className="mt-4">Connect YouTube Music</Button>
+                )}
+                {isDeezerAvailable ? (
+                  <Alert className="mb-4">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertTitle>Deezer Available</AlertTitle>
+                    <AlertDescription>
+                      Deezer functionality is available.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Button className="mt-4">Connect Deezer</Button>
+                )}
+                <Button onClick={handleContinue} className="mt-4">
+                  Continue to Dashboard
+                </Button>
+              </div>
             </div>
           ) : (
             <div>
               <p className="mb-4">
-                Here's an overview of your connected accounts and playlists.
+                Here's an overview of your connected accounts and available
+                services.
               </p>
-              {isSpotifyConnected && (
-                <Alert className="mb-4">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <AlertTitle>Spotify Connected</AlertTitle>
-                  <AlertDescription>
-                    Your Spotify account is successfully connected.
-                  </AlertDescription>
-                </Alert>
-              )}
-              {/* Add dashboard content here */}
             </div>
           )}
         </CardContent>
